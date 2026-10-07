@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Operator Registration - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card auth-card-wide">
+    <div class="text-center mb-4">
+      <img src="{{ url_for('static', filename='images/shield_icon.png') }}" alt="Security Shield" width="60" height="60" class="mb-2">
+      <h3 class="mb-1 text-white">OPERATOR REGISTRATION</h3>
+      <div class="text-cyan small fw-semibold">Digital Forensics &amp; File Security Portal</div>
+      <div class="text-muted small mt-1">Register new analyst credentials for forensic audits</div>
+    </div>
+
+    <form method="POST" action="{{ url_for('register') }}" novalidate>
+      <!-- Full Name Field -->
+      <div class="mb-3">
+        <label for="full_name" class="form-label-cyber">Full Name *</label>
+        <div class="input-group">
+          <span class="input-group-text bg-dark border-secondary text-cyan">
+            <i class="fa-solid fa-id-card"></i>
+          </span>
+          <input type="text" class="form-control form-control-cyber" id="full_name" name="full_name" value="{{ full_name or '' }}" placeholder="e.g. Viraj Jadhav" required autofocus>
+        </div>
+      </div>
+
+      <!-- Two-column grid for Username and Email -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label for="username" class="form-label-cyber">Username *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-cyan">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input type="text" class="form-control form-control-cyber" id="username" name="username" value="{{ username or '' }}" placeholder="e.g. viraj_forensics" required>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label for="email" class="form-label-cyber">Email Address *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-cyan">
+              <i class="fa-solid fa-envelope"></i>
+            </span>
+            <input type="email" class="form-control form-control-cyber" id="email" name="email" value="{{ email or '' }}" placeholder="analyst@domain.com" required>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-column grid for Password and Confirm Password -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label for="password" class="form-label-cyber">Password *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-cyan">
+              <i class="fa-solid fa-key"></i>
+            </span>
+            <input type="password" class="form-control form-control-cyber" id="password" name="password" placeholder="Min 6 characters" required>
+            <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="password" title="Toggle password">
+              <i class="fa-solid fa-eye text-muted"></i>
+            </button>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label for="confirm_password" class="form-label-cyber">Confirm Password *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-cyan">
+              <i class="fa-solid fa-check-double"></i>
+            </span>
+            <input type="password" class="form-control form-control-cyber" id="confirm_password" name="confirm_password" placeholder="Repeat password" required>
+            <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="confirm_password" title="Toggle password">
+              <i class="fa-solid fa-eye text-muted"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="d-grid gap-2 mb-3">
+        <button type="submit" class="btn btn-cyber-primary py-2">
+          <i class="fa-solid fa-user-plus"></i> Create Operator Account
+        </button>
+      </div>
+
+      <!-- Login Link -->
+      <div class="text-center pt-2 border-top" style="border-color: var(--border-subtle) !important;">
+        <span class="text-muted small">Already have an account?</span>
+        <a href="{{ url_for('login') }}" class="text-cyan small fw-semibold text-decoration-none ms-1">
+          Back to Login <i class="fa-solid fa-arrow-right-long"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

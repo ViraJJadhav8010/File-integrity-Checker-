@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+    <div>
+      <h2 class="mb-1 text-white">Forensic Overview &amp; Monitoring</h2>
+      <div class="text-cyan small">Real-time cryptographic checksums and file modification alerts</div>
+    </div>
+    <div class="d-flex gap-2 mt-3 mt-md-0">
+      <a href="{{ url_for('browse_file') }}" class="btn btn-cyber-cyan btn-sm">
+        <i class="fa-solid fa-file-circle-plus"></i> Analyze New File
+      </a>
+      <a href="{{ url_for('check_integrity') }}" class="btn btn-cyber-primary btn-sm">
+        <i class="fa-solid fa-magnifying-glass-chart"></i> Verify Integrity
+      </a>
+    </div>
+  </div>
+
+  <!-- 4 Summary Metric Cards (Dynamic values from MySQL) -->
+  <div class="row g-3 mb-4">
+    <!-- Total Monitored Files -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="cyber-card stat-card">
+        <div>
+          <div class="stat-label">Total Files</div>
+          <div class="stat-value text-cyan" id="statTotalFiles">{{ stats.total_files }}</div>
+          <div class="text-muted small mt-1">In MySQL Baseline</div>
+        </div>
+        <div class="stat-icon text-cyan">
+          <i class="fa-solid fa-folder-closed"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verified Safe Files -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="cyber-card stat-card stat-safe">
+        <div>
+          <div class="stat-label">Verified Files</div>
+          <div class="stat-value text-success">{{ stats.verified_files }}</div>
+          <div class="text-muted small mt-1">Integrity Confirmed</div>
+        </div>
+        <div class="stat-icon text-success">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modified / Tampered Files -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="cyber-card stat-card stat-alert">
+        <div>
+          <div class="stat-label">Modified Files</div>
+          <div class="stat-value text-danger">{{ stats.modified_files }}</div>
+          <div class="text-muted small mt-1">Tamper Violations</div>
+        </div>
+        <div class="stat-icon text-danger">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrity Audits Run -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="cyber-card stat-card stat-warn">
+        <div>
+          <div class="stat-label">Integrity Checks</div>
+          <div class="stat-value text-warning">{{ stats.total_checks }}</div>
+          <div class="text-muted small mt-1">Total Audits Run</div>
+        </div>
+        <div class="stat-icon text-warning">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cryptographic Baseline Table Card -->
+  <div class="cyber-card mb-4">
+    <div class="cyber-card-header flex-column flex-md-row gap-2">
+      <div>
+        <h5 class="mb-0 text-white"><i class="fa-solid fa-database text-cyan me-2"></i> Cryptographic Baseline Registry</h5>
+        <span class="text-muted small">Registered MD5 file fingerprints monitored by the system</span>
+      </div>
+
+      <!-- Search Filter -->
+      <div class="d-flex align-items-center gap-2">
+        <div class="input-group input-group-sm" style="max-width: 280px;">
+          <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-filter"></i></span>
+          <input type="text" id="tableLiveSearch" class="form-control form-control-cyber form-control-sm" placeholder="Filter files or hashes...">
+        </div>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary" title="Refresh data">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </a>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-cyber filterable-table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 25%;">File Name</th>
+            <th style="width: 35%;">Cryptographic MD5 Hash</th>
+            <th style="width: 15%;">Status</th>
+            <th style="width: 15%;">Last Audit</th>
+            <th style="width: 10%;" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if files %}
+            {% for f in files %}
+            <tr id="row-file-{{ f.id }}">
+              <td>
+                <div class="fw-bold text-white d-flex align-items-center gap-2">
+                  <i class="fa-regular fa-file text-cyan"></i>
+                  <span>{{ f.file_name }}</span>
+                </div>
+                <div class="text-muted small">{{ f.file_size or 'Unknown size' }} &bull; {{ f.file_type or 'File' }}</div>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2 font-monospace-code text-cyan">
+                  <span>{{ f.file_hash }}</span>
+                  <button type="button" class="btn btn-copy btn-copy-hash" data-hash="{{ f.file_hash }}" title="Copy hash">
+                    <i class="fa-regular fa-copy"></i>
+                  </button>
+                </div>
+              </td>
+              <td>
+                {% if f.latest_status == 'VERIFIED' %}
+                <span class="badge-status badge-status-safe">
+                  <i class="fa-solid fa-circle-check"></i> SAFE / VERIFIED
+                </span>
+                {% elif f.latest_status == 'MODIFIED' %}
+                <span class="badge-status badge-status-alert">
+                  <i class="fa-solid fa-circle-xmark"></i> MODIFIED / TAMPERED
+                </span>
+                {% else %}
+                <span class="badge-status badge-status-neutral">
+                  <i class="fa-solid fa-circle"></i> STORED / UNCHECKED
+                </span>
+                {% endif %}
+              </td>
+              <td class="text-muted small">
+                {% if f.last_checked %}
+                  {{ f.last_checked.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                  Baseline Stored
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <!-- Check Integrity Shortcut -->
+                  <a href="{{ url_for('check_integrity', file=f.file_name) }}" class="btn btn-outline-primary" title="Check Integrity">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                  </a>
+                  <!-- View Details Modal Trigger -->
+                  <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ f.id }}" title="View Details">
+                    <i class="fa-solid fa-circle-info"></i>
+                  </button>
+                  <!-- Delete Baseline -->
+                  <button type="button" class="btn btn-outline-danger btn-delete-baseline" data-id="{{ f.id }}" data-name="{{ f.file_name }}" title="Delete Baseline">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+
+                <!-- Forensic Detail Modal -->
+                <div class="modal fade" id="detailModal{{ f.id }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content cyber-card" style="background-color: #101c36; border: 1px solid var(--cyan-accent);">
+                      <div class="modal-header border-secondary">
+                        <h5 class="modal-title text-white"><i class="fa-solid fa-shield-halved text-cyan me-2"></i> Forensics Record: {{ f.file_name }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body text-start">
+                        <div class="mb-3">
+                          <label class="text-muted small fw-bold text-uppercase">Target File</label>
+                          <div class="text-white fw-bold">{{ f.file_name }}</div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="text-muted small fw-bold text-uppercase">Baseline Cryptographic Checksum (MD5)</label>
+                          <div class="font-monospace-code text-cyan p-2 rounded bg-dark border border-secondary">{{ f.file_hash }}</div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                          <div class="col-6">
+                            <label class="text-muted small fw-bold text-uppercase">Recorded Size</label>
+                            <div class="text-light">{{ f.file_size or 'N/A' }}</div>
+                          </div>
+                          <div class="col-6">
+                            <label class="text-muted small fw-bold text-uppercase">File Type</label>
+                            <div class="text-light">{{ f.file_type or 'General File' }}</div>
+                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="text-muted small fw-bold text-uppercase">Latest Verification Status</label>
+                          <div>
+                            {% if f.latest_status == 'VERIFIED' %}
+                            <span class="badge-status badge-status-safe"><i class="fa-solid fa-circle-check"></i> SAFE / VERIFIED</span>
+                            {% elif f.latest_status == 'MODIFIED' %}
+                            <span class="badge-status badge-status-alert"><i class="fa-solid fa-circle-xmark"></i> MODIFIED / TAMPERED</span>
+                            {% else %}
+                            <span class="badge-status badge-status-neutral"><i class="fa-solid fa-circle"></i> STORED / UNCHECKED</span>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-secondary">
+                        <a href="{{ url_for('check_integrity', file=f.file_name) }}" class="btn btn-cyber-primary btn-sm">
+                          <i class="fa-solid fa-magnifying-glass"></i> Verify Now
+                        </a>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-folder-open fs-2 mb-2 d-block text-secondary"></i>
+                <div>No cryptographic baseline records found in MySQL.</div>
+                <div class="small mt-1">Upload a file in <a href="{{ url_for('browse_file') }}" class="text-cyan">Browse File</a> or <a href="{{ url_for('store_hash') }}" class="text-cyan">Store Hash</a> to begin monitoring.</div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

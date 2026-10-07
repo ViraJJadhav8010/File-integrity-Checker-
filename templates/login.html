@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Operator Login - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="text-center mb-4">
+      <img src="{{ url_for('static', filename='images/shield_icon.png') }}" alt="Security Shield" width="64" height="64" class="mb-2">
+      <h3 class="mb-1 text-white">FILE INTEGRITY CHECKER</h3>
+      <div class="text-cyan small fw-semibold">Digital Forensics &amp; File Security</div>
+      <div class="text-muted small mt-1">Authorized Forensic Operator Portal</div>
+    </div>
+
+    <form method="POST" action="{{ url_for('login') }}" novalidate>
+      <!-- Username / Email Field -->
+      <div class="mb-3">
+        <label for="username" class="form-label-cyber">Username or Email</label>
+        <div class="input-group">
+          <span class="input-group-text bg-dark border-secondary text-cyan">
+            <i class="fa-solid fa-user-shield"></i>
+          </span>
+          <input type="text" class="form-control form-control-cyber" id="username" name="username" value="{{ username or '' }}" placeholder="Enter username or email" required autofocus>
+        </div>
+      </div>
+
+      <!-- Password Field with Show/Hide Toggle -->
+      <div class="mb-4">
+        <label for="password" class="form-label-cyber">Password</label>
+        <div class="input-group">
+          <span class="input-group-text bg-dark border-secondary text-cyan">
+            <i class="fa-solid fa-lock"></i>
+          </span>
+          <input type="password" class="form-control form-control-cyber" id="password" name="password" placeholder="Enter security password" required>
+          <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="password" title="Toggle password visibility">
+            <i class="fa-solid fa-eye text-muted"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="d-grid gap-2 mb-3">
+        <button type="submit" class="btn btn-cyber-primary py-2">
+          <i class="fa-solid fa-right-to-bracket"></i> Login to Dashboard
+        </button>
+      </div>
+
+      <!-- Register Link Button -->
+      <div class="text-center pt-2 border-top" style="border-color: var(--border-subtle) !important;">
+        <span class="text-muted small">Need an operator account?</span>
+        <a href="{{ url_for('register') }}" class="text-cyan small fw-semibold text-decoration-none ms-1">
+          Create Account <i class="fa-solid fa-arrow-right-long"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

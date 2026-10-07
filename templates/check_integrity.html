@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Check Integrity - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="mb-4">
+    <h2 class="mb-1 text-white">Cryptographic Integrity Verification</h2>
+    <div class="text-cyan small">Upload live files to verify against the stored baseline and detect tampering</div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Verification Form Card -->
+    <div class="col-lg-5">
+      <div class="cyber-card p-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-magnifying-glass-chart text-cyan me-2"></i> File Verification</h5>
+
+        <form method="POST" action="{{ url_for('check_integrity') }}" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label-cyber">Upload File to Verify Against Database *</label>
+            <input type="file" name="file" class="form-control form-control-cyber" required>
+            <div class="text-muted small mt-1">
+              {% if pre_file %}
+              Requested target file: <strong class="text-cyan">{{ pre_file }}</strong>
+              {% else %}
+              Upload the target file to compute its current hash and compare with the baseline.
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="d-grid mt-4">
+            <button type="submit" class="btn btn-cyber-primary py-2">
+              <i class="fa-solid fa-shield-check"></i> Run Integrity Verification
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-4 p-3 rounded" style="background-color: #0c162b; border: 1px solid var(--border-subtle);">
+          <div class="small fw-bold text-cyan mb-1"><i class="fa-solid fa-info-circle me-1"></i> Detection Mechanism</div>
+          <div class="text-muted small">
+            The verification engine matches the uploaded file's computed MD5 digest against the baseline in MySQL. Even a single bit modification causes an avalanche effect producing an entirely different hash.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forensic Verification Result Card (Large Result Display) -->
+    <div class="col-lg-7">
+      <div class="cyber-card h-100 p-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-square-poll-vertical text-cyan me-2"></i> Audit Result</h5>
+
+        {% if result %}
+          {% if result.status == 'VERIFIED' %}
+          <!-- 🟢 SAFE / VERIFIED RESULT CARD -->
+          <div class="result-card-safe mb-4 text-center">
+            <div class="display-5 text-success mb-2">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 class="text-success fw-bold mb-1">FILE INTEGRITY VERIFIED</h3>
+            <p class="text-white mb-0">{{ result.message }}</p>
+            <span class="badge rounded-pill text-bg-success mt-2 px-3 py-1">100% Cryptographic Match &bull; Safe</span>
+          </div>
+
+          {% elif result.status == 'MODIFIED' %}
+          <!-- 🔴 MODIFIED / TAMPERED RESULT CARD -->
+          <div class="result-card-alert mb-4 text-center">
+            <div class="display-5 text-danger mb-2">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-danger fw-bold mb-1">FILE INTEGRITY VIOLATION</h3>
+            <p class="text-white mb-0">{{ result.message }}</p>
+            <span class="badge rounded-pill text-bg-danger mt-2 px-3 py-1">Critical &bull; Unauthorized Tampering Detected</span>
+          </div>
+
+          {% else %}
+          <!-- 🟠 WARNING / UNREGISTERED RESULT CARD -->
+          <div class="result-card-warn mb-4 text-center">
+            <div class="display-5 text-warning mb-2">
+              <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 class="text-warning fw-bold mb-1">BASELINE NOT FOUND</h3>
+            <p class="text-white mb-0">{{ result.message }}</p>
+            <a href="{{ url_for('store_hash', name=result.file_name, hash=result.current_hash) }}" class="btn btn-cyber-success btn-sm mt-3">
+              <i class="fa-solid fa-plus"></i> Store Baseline for this File
+            </a>
+          </div>
+          {% endif %}
+
+          <!-- Detailed Hash Comparison Matrix -->
+          <div class="p-3 rounded" style="background-color: #0c182f; border: 1px solid var(--border-subtle);">
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label class="text-muted small fw-bold text-uppercase">Target File Name</label>
+                <div class="text-white fw-bold">{{ result.file_name }}</div>
+              </div>
+              <div class="col-sm-6">
+                <label class="text-muted small fw-bold text-uppercase">Audit Timestamp</label>
+                <div class="text-white">{{ result.timestamp }}</div>
+              </div>
+
+              <div class="col-12">
+                <label class="text-muted small fw-bold text-uppercase">Original (Baseline) Hash</label>
+                <div class="font-monospace-code p-2 rounded bg-dark border border-secondary text-cyan">
+                  {{ result.baseline_hash or 'Not recorded in database' }}
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="text-muted small fw-bold text-uppercase">Current (Computed) Hash</label>
+                <div class="font-monospace-code p-2 rounded bg-dark border border-secondary text-cyan">
+                  {{ result.current_hash }}
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="text-muted small fw-bold text-uppercase">Forensic Difference / Match Result</label>
+                <div>
+                  {% if result.match %}
+                  <span class="text-success fw-bold font-monospace-code">
+                    <i class="fa-solid fa-check-double me-1"></i> Checksums are IDENTICAL. No file alterations detected.
+                  </span>
+                  {% else %}
+                  <span class="text-danger fw-bold font-monospace-code">
+                    <i class="fa-solid fa-xmark me-1"></i> Checksums DIFFER. Unauthorized file modification confirmed!
+                  </span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        {% else %}
+        <div class="d-flex flex-column align-items-center justify-content-center py-5 text-center text-muted h-75">
+          <i class="fa-solid fa-shield-halved fs-1 text-secondary mb-3"></i>
+          <h5 class="text-white-50">Awaiting Verification</h5>
+          <p class="small text-muted" style="max-width: 400px;">
+            Select a target file to verify its current cryptographic checksum against the baseline stored in MySQL.
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

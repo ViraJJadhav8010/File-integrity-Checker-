@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Browse &amp; Inspect File - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="mb-4">
+    <h2 class="mb-1 text-white">Browse File &amp; Forensic Inspection</h2>
+    <div class="text-cyan small">Upload target file to generate cryptographic checksums and inspect filesystem parameters</div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Upload Dropzone Card -->
+    <div class="col-lg-5">
+      <div class="cyber-card p-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-cloud-arrow-up text-cyan me-2"></i> File Selection</h5>
+
+        <form method="POST" action="{{ url_for('browse_file') }}" enctype="multipart/form-data" id="browseUploadForm">
+          <input type="file" name="file" id="fileInput" class="d-none" required>
+
+          <div class="dropzone-cyber mb-3" id="fileDropzone">
+            <div class="dropzone-icon">
+              <i class="fa-solid fa-file-shield"></i>
+            </div>
+            <div class="fs-6 fw-bold text-white mb-1" id="dropzoneText">DRAG &amp; DROP FILE HERE</div>
+            <div class="text-muted small mb-3">or click anywhere to browse local filesystem</div>
+            <button type="button" class="btn btn-cyber-cyan btn-sm">
+              <i class="fa-solid fa-folder-open"></i> Choose File...
+            </button>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-cyber-primary py-2">
+              <i class="fa-solid fa-calculator"></i> Calculate Cryptographic Hash
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-4 p-3 rounded" style="background-color: #0c162b; border: 1px solid var(--border-subtle);">
+          <div class="small fw-bold text-cyan mb-1"><i class="fa-solid fa-shield-halved me-1"></i> Security Note</div>
+          <div class="text-muted small">
+            Uploaded files are securely parsed using <code>secure_filename()</code> to protect against path traversal and malicious filenames. Hashes are computed in 4096-byte buffers.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forensic Inspection Output Card -->
+    <div class="col-lg-7">
+      <div class="cyber-card h-100 p-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-fingerprint text-cyan me-2"></i> Forensic Inspection Results</h5>
+
+        {% if file_metadata %}
+        <div class="p-3 mb-4 rounded" style="background-color: #0d1a33; border: 1px solid var(--border-subtle);">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="text-muted small fw-bold text-uppercase">Target File Name</label>
+              <div class="text-white fw-bold d-flex align-items-center gap-2">
+                <i class="fa-regular fa-file-lines text-cyan"></i>
+                <span>{{ file_metadata.file_name }}</span>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="text-muted small fw-bold text-uppercase">File Size on Disk</label>
+              <div class="text-white">{{ file_metadata.formatted_size }}</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="text-muted small fw-bold text-uppercase">Detected Format / MIME</label>
+              <div class="text-white">{{ file_metadata.file_type }}</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="text-muted small fw-bold text-uppercase">Inspection Timestamp</label>
+              <div class="text-white">{{ file_metadata.timestamp }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calculated Hashes Box -->
+        <div class="mb-4">
+          <label class="text-cyan small fw-bold text-uppercase mb-2">Primary MD5 Cryptographic Checksum (Baseline)</label>
+          <div class="p-3 rounded bg-dark border border-secondary-subtle d-flex align-items-center justify-content-between">
+            <span class="font-monospace-code text-cyan fw-bold fs-6">{{ file_metadata.md5_hash }}</span>
+            <button type="button" class="btn btn-copy btn-copy-hash" data-hash="{{ file_metadata.md5_hash }}">
+              <i class="fa-regular fa-copy me-1"></i> Copy MD5
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="text-muted small fw-bold text-uppercase mb-2">Secondary Forensic Hash (SHA-256)</label>
+          <div class="p-2 rounded bg-dark border border-secondary-subtle font-monospace-code text-muted small text-break">
+            {{ file_metadata.sha256_hash }}
+          </div>
+        </div>
+
+        <!-- Action Shortcuts -->
+        <div class="d-flex flex-wrap gap-2 pt-2 border-top" style="border-color: var(--border-subtle) !important;">
+          <a href="{{ url_for('store_hash', name=file_metadata.file_name, hash=file_metadata.md5_hash, size=file_metadata.formatted_size, type=file_metadata.file_type) }}" class="btn btn-cyber-success">
+            <i class="fa-solid fa-database"></i> Commit to Baseline Registry
+          </a>
+          <a href="{{ url_for('check_integrity', file=file_metadata.file_name) }}" class="btn btn-cyber-primary">
+            <i class="fa-solid fa-magnifying-glass-chart"></i> Verify Integrity
+          </a>
+        </div>
+
+        {% else %}
+        <div class="d-flex flex-column align-items-center justify-content-center py-5 text-center text-muted h-75">
+          <i class="fa-solid fa-magnifying-glass fs-1 text-secondary mb-3"></i>
+          <h5 class="text-white-50">No File Inspected Yet</h5>
+          <p class="small text-muted" style="max-width: 380px;">
+            Select or drag a file into the upload zone to view its cryptographic checksums, filesystem size, and forensic characteristics.
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

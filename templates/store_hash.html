@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Store Baseline Hash - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="mb-4">
+    <h2 class="mb-1 text-white">Cryptographic Baseline Registry</h2>
+    <div class="text-cyan small">Commit authentic file checksums into MySQL database (file_hashes) for forensic monitoring</div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="cyber-card p-4">
+        <!-- Protocol Informational Banner -->
+        <div class="p-3 mb-4 rounded" style="background-color: #0c1c38; border: 1px solid var(--border-subtle);">
+          <div class="d-flex align-items-center gap-2 text-cyan fw-bold mb-1">
+            <i class="fa-solid fa-shield-halved"></i> Digital Forensics Baseline Protocol
+          </div>
+          <div class="text-muted small">
+            Registering a cryptographic MD5 baseline records an immutable signature in MySQL. If the file is already tracked, its baseline is updated. Any future unauthorized alteration or malware tampering will be detected by comparison against this baseline.
+          </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('store_hash') }}" enctype="multipart/form-data">
+          <!-- Option A: Direct File Upload to auto-calculate -->
+          <div class="mb-3">
+            <label class="form-label-cyber">Upload Target File (Auto-Computes MD5)</label>
+            <input type="file" name="file" class="form-control form-control-cyber">
+            <div class="text-muted small mt-1">Upload a file directly to compute and register its hash, or specify values below.</div>
+          </div>
+
+          <div class="text-center my-3 text-muted small position-relative">
+            <hr style="border-color: var(--border-subtle);">
+            <span class="position-absolute top-50 start-50 translate-middle px-3" style="background-color: var(--bg-card);">OR CONFIRM RECORD DETAILS</span>
+          </div>
+
+          <!-- Target File Name -->
+          <div class="mb-3">
+            <label for="file_name" class="form-label-cyber">File Name *</label>
+            <div class="input-group">
+              <span class="input-group-text bg-dark border-secondary text-cyan">
+                <i class="fa-regular fa-file"></i>
+              </span>
+              <input type="text" class="form-control form-control-cyber" id="file_name" name="file_name" value="{{ file_info.file_name if file_info else '' }}" placeholder="e.g. system32_kernel.dll" required>
+            </div>
+          </div>
+
+          <!-- MD5 Hash -->
+          <div class="mb-3">
+            <label for="file_hash" class="form-label-cyber">Cryptographic MD5 Checksum (32 Hex Characters) *</label>
+            <div class="input-group">
+              <span class="input-group-text bg-dark border-secondary text-cyan">
+                <i class="fa-solid fa-fingerprint"></i>
+              </span>
+              <input type="text" class="form-control form-control-cyber font-monospace-code text-cyan" id="file_hash" name="file_hash" value="{{ file_info.md5_hash if file_info else '' }}" placeholder="e.g. b9565afd6f2d8d30f9c463898b7c5bcf" maxlength="32" required>
+            </div>
+          </div>
+
+          <!-- Additional Metadata Grid -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label for="file_size" class="form-label-cyber">File Size (Optional)</label>
+              <input type="text" class="form-control form-control-cyber" id="file_size" name="file_size" value="{{ file_info.formatted_size if file_info else '' }}" placeholder="e.g. 24.5 KB">
+            </div>
+            <div class="col-md-6">
+              <label for="file_type" class="form-label-cyber">File Type (Optional)</label>
+              <input type="text" class="form-control form-control-cyber" id="file_type" name="file_type" value="{{ file_info.file_type if file_info else '' }}" placeholder="e.g. Executable (.exe)">
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-cyber-success py-2">
+              <i class="fa-solid fa-database"></i> Commit Baseline Hash to Database
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Quick Instructions / Tips Sidebar -->
+    <div class="col-lg-4">
+      <div class="cyber-card p-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-circle-question text-cyan me-2"></i> How It Works</h5>
+        
+        <ol class="text-muted small ps-3 mb-4">
+          <li class="mb-2"><strong>Baseline Registration:</strong> The calculated MD5 checksum is saved to the <code>file_hashes</code> table.</li>
+          <li class="mb-2"><strong>Tamper Protection:</strong> If any byte of the file is modified by ransomware, attackers, or unauthorized scripts, its hash changes entirely.</li>
+          <li class="mb-2"><strong>Verification:</strong> The <a href="{{ url_for('check_integrity') }}" class="text-cyan">Check Integrity</a> tool verifies live files against this database baseline.</li>
+        </ol>
+
+        <div class="p-3 rounded" style="background-color: #0c162b; border: 1px solid var(--border-subtle);">
+          <div class="small fw-bold text-white mb-2"><i class="fa-solid fa-server text-cyan me-1"></i> Storage Schema</div>
+          <div class="font-monospace-code small text-muted">
+            Table: file_hashes<br>
+            Columns: file_name, file_hash, file_size, file_type, created_at
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

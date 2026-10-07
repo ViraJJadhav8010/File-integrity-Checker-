@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Audit History - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+    <div>
+      <h2 class="mb-1 text-white">Forensic Audit History &amp; Reports</h2>
+      <div class="text-cyan small">Historical log of all cryptographic integrity checks and security alerts</div>
+    </div>
+    <div class="d-flex gap-2 mt-3 mt-md-0">
+      <a href="{{ url_for('export_history') }}" class="btn btn-cyber-cyan btn-sm">
+        <i class="fa-solid fa-file-arrow-down"></i> Export Forensics Report (CSV)
+      </a>
+    </div>
+  </div>
+
+  <div class="cyber-card">
+    <div class="cyber-card-header flex-column flex-md-row gap-3">
+      <!-- Status Filters -->
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small fw-bold text-uppercase">Status Filter:</span>
+        <div class="btn-group btn-group-sm">
+          <a href="{{ url_for('history', status='ALL', q=search_q) }}" class="btn {% if current_filter == 'ALL' %}btn-cyan-active btn-primary{% else %}btn-outline-secondary{% endif %}">
+            ALL
+          </a>
+          <a href="{{ url_for('history', status='VERIFIED', q=search_q) }}" class="btn {% if current_filter == 'VERIFIED' %}btn-success{% else %}btn-outline-secondary{% endif %}">
+            <i class="fa-solid fa-circle-check"></i> VERIFIED
+          </a>
+          <a href="{{ url_for('history', status='MODIFIED', q=search_q) }}" class="btn {% if current_filter == 'MODIFIED' %}btn-danger{% else %}btn-outline-secondary{% endif %}">
+            <i class="fa-solid fa-triangle-exclamation"></i> MODIFIED
+          </a>
+        </div>
+      </div>
+
+      <!-- Search Form -->
+      <form method="GET" action="{{ url_for('history') }}" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="status" value="{{ current_filter }}">
+        <div class="input-group input-group-sm" style="max-width: 280px;">
+          <input type="text" name="q" value="{{ search_q or '' }}" class="form-control form-control-cyber form-control-sm" placeholder="Search file or hash...">
+          <button class="btn btn-cyber-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+        {% if search_q %}
+        <a href="{{ url_for('history', status=current_filter) }}" class="btn btn-sm btn-outline-secondary" title="Clear search">
+          <i class="fa-solid fa-xmark"></i>
+        </a>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- History Audit Table -->
+    <div class="table-responsive">
+      <table class="table table-cyber align-middle">
+        <thead>
+          <tr>
+            <th style="width: 8%;">ID</th>
+            <th style="width: 22%;">Target File</th>
+            <th style="width: 22%;">Baseline Hash</th>
+            <th style="width: 22%;">Computed Hash</th>
+            <th style="width: 14%;">Result</th>
+            <th style="width: 12%;">Timestamp</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if logs %}
+            {% for log in logs %}
+            <tr>
+              <td class="text-muted small">#{{ log.id }}</td>
+              <td>
+                <div class="fw-bold text-white d-flex align-items-center gap-2">
+                  <i class="fa-regular fa-file text-cyan"></i>
+                  <span>{{ log.file_name }}</span>
+                </div>
+                <div class="text-muted small">Auditor: {{ log.checked_by or 'Analyst' }}</div>
+              </td>
+              <td>
+                <span class="font-monospace-code text-muted small">
+                  {{ log.baseline_hash or 'N/A' }}
+                </span>
+              </td>
+              <td>
+                <span class="font-monospace-code text-cyan small">
+                  {{ log.current_hash }}
+                </span>
+              </td>
+              <td>
+                {% if log.status == 'VERIFIED' %}
+                <span class="badge-status badge-status-safe">
+                  <i class="fa-solid fa-circle-check"></i> SAFE
+                </span>
+                {% elif log.status == 'MODIFIED' %}
+                <span class="badge-status badge-status-alert">
+                  <i class="fa-solid fa-circle-xmark"></i> MODIFIED
+                </span>
+                {% else %}
+                <span class="badge-status badge-status-warn">
+                  <i class="fa-solid fa-triangle-exclamation"></i> {{ log.status }}
+                </span>
+                {% endif %}
+              </td>
+              <td class="text-muted small">
+                {{ log.checked_at.strftime('%Y-%m-%d %H:%M:%S') if log.checked_at else 'N/A' }}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-clock-rotate-left fs-2 mb-2 d-block text-secondary"></i>
+                <div>No historical audit records found matching criteria.</div>
+                <div class="small mt-1">Run an integrity check on <a href="{{ url_for('check_integrity') }}" class="text-cyan">Check Integrity</a> to generate log entries.</div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Operator Profile - File Integrity Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="mb-4">
+    <h2 class="mb-1 text-white">Forensic Operator Profile</h2>
+    <div class="text-cyan small">Manage analyst credentials, security keys, and audit performance metrics</div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Analyst Credential Card -->
+    <div class="col-lg-4">
+      <div class="cyber-card p-4 text-center">
+        <div class="mb-3">
+          <div class="d-inline-flex p-3 rounded-circle bg-dark border border-cyan" style="box-shadow: 0 0 16px var(--cyan-glow);">
+            <i class="fa-solid fa-user-shield fs-1 text-cyan"></i>
+          </div>
+        </div>
+
+        <h4 class="text-white mb-1">{{ user.full_name }}</h4>
+        <div class="text-cyan small fw-semibold mb-2">@{{ user.username }}</div>
+        <span class="badge rounded-pill text-bg-info px-3 py-1 mb-4">Forensic Analyst &bull; Clearance L3</span>
+
+        <div class="text-start p-3 rounded mb-3" style="background-color: #0c162b; border: 1px solid var(--border-subtle);">
+          <div class="mb-2">
+            <span class="text-muted small fw-bold text-uppercase d-block">Email Address</span>
+            <span class="text-light small">{{ user.email }}</span>
+          </div>
+          <div class="mb-2">
+            <span class="text-muted small fw-bold text-uppercase d-block">Operator ID</span>
+            <span class="text-light small">#{{ user.id }}</span>
+          </div>
+          <div class="mb-2">
+            <span class="text-muted small fw-bold text-uppercase d-block">Account Registered</span>
+            <span class="text-light small">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'Active' }}</span>
+          </div>
+          <div>
+            <span class="text-muted small fw-bold text-uppercase d-block">Integrity Audits Conducted</span>
+            <span class="text-cyan fw-bold fs-6">{{ user_audits }} Audits</span>
+          </div>
+        </div>
+
+        <div class="text-start p-3 rounded" style="background-color: #0c162b; border: 1px solid var(--border-subtle);">
+          <div class="small fw-bold text-white mb-1"><i class="fa-solid fa-shield-halved text-cyan me-1"></i> Security Protocol</div>
+          <div class="text-muted small">Passwords are secured with cryptographic salted hashes. Sessions use secure HTTP cookies.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Settings & Password Change -->
+    <div class="col-lg-8">
+      <!-- Update Account Info -->
+      <div class="cyber-card p-4 mb-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-user-pen text-cyan me-2"></i> Update Operator Information</h5>
+
+        <form method="POST" action="{{ url_for('profile') }}">
+          <input type="hidden" name="action" value="update_info">
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="full_name" class="form-label-cyber">Full Name</label>
+              <input type="text" class="form-control form-control-cyber" id="full_name" name="full_name" value="{{ user.full_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="email" class="form-label-cyber">Email Address</label>
+              <input type="email" class="form-control form-control-cyber" id="email" name="email" value="{{ user.email }}" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-cyber-primary btn-sm">
+            <i class="fa-solid fa-floppy-disk"></i> Save Profile Details
+          </button>
+        </form>
+      </div>
+
+      <!-- Change Password -->
+      <div class="cyber-card p-4">
+        <h5 class="text-white mb-3"><i class="fa-solid fa-key text-cyan me-2"></i> Change Security Password</h5>
+
+        <form method="POST" action="{{ url_for('profile') }}">
+          <input type="hidden" name="action" value="change_password">
+
+          <div class="mb-3">
+            <label for="current_password" class="form-label-cyber">Current Password</label>
+            <div class="input-group">
+              <input type="password" class="form-control form-control-cyber" id="current_password" name="current_password" placeholder="Enter existing password" required>
+              <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="current_password" title="Toggle password">
+                <i class="fa-solid fa-eye text-muted"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label for="new_password" class="form-label-cyber">New Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control form-control-cyber" id="new_password" name="new_password" placeholder="Min 6 characters" required>
+                <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="new_password" title="Toggle password">
+                  <i class="fa-solid fa-eye text-muted"></i>
+                </button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label for="confirm_password" class="form-label-cyber">Confirm New Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control form-control-cyber" id="confirm_password" name="confirm_password" placeholder="Repeat new password" required>
+                <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="confirm_password" title="Toggle password">
+                  <i class="fa-solid fa-eye text-muted"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-cyber-cyan btn-sm">
+            <i class="fa-solid fa-lock"></i> Update Password Credentials
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
