@@ -4,17 +4,8 @@ import sys
 # Ensure root directory is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import mysql.connector
 from config import Config
-
-def get_connection():
-    """Returns a new MySQL database connection using Config."""
-    try:
-        connection = mysql.connector.connect(**Config.DB_CONFIG)
-        return connection
-    except mysql.connector.Error as err:
-        print(f"[Database Error] Connection failed: {err}")
-        return None
+from config.database import get_connection
 
 def init_db():
     """Initializes and migrates MySQL database tables for the web application."""

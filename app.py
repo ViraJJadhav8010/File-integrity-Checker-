@@ -30,7 +30,10 @@ app.config.from_object(Config)
 
 # Ensure database tables exist and migrations are applied
 with app.app_context():
-    init_db()
+    try:
+        init_db()
+    except Exception as db_init_err:
+        print(f"[Warning] Database initialization during startup: {db_init_err}")
 
 # -------------------------------------------------------------
 # Authentication Decorator

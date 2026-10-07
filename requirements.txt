@@ -1,2 +1,5 @@
+Flask
+Werkzeug
 mysql-connector-python
 Pillow
+python-dotenv
