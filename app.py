@@ -8,6 +8,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
 from database.database import get_connection, init_db
@@ -33,23 +34,29 @@ app = Flask(
     template_folder=os.path.join(BASE_DIR, "templates")
 )
 app.config.from_object(Config)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax"
+)
 
-# WSGI Middleware to normalize paths when running on Vercel Serverless
+# Trust reverse-proxy headers (HTTPS, Host, Client-IP) from Vercel edge network
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# WSGI Middleware to normalize paths ONLY when prefixed by serverless function name
 class VercelPathFixMiddleware:
     def __init__(self, wsgi_app):
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ, start_response):
-        matched_path = environ.get("HTTP_X_MATCHED_PATH")
-        if matched_path and matched_path not in ["/api/index.py", "/api/index", "/api/app.py", "/app.py"]:
-            environ["PATH_INFO"] = matched_path
-        else:
-            path_info = environ.get("PATH_INFO", "")
-            for prefix in ["/api/index.py", "/api/index", "/api/app.py", "/app.py"]:
-                if path_info.startswith(prefix):
-                    stripped = path_info[len(prefix):]
-                    environ["PATH_INFO"] = stripped if (stripped and stripped.startswith("/")) else ("/" + stripped if stripped else "/")
-                    break
+        path_info = environ.get("PATH_INFO", "")
+        # Only rewrite if path explicitly starts with an internal serverless handler prefix
+        for prefix in ["/api/index.py", "/api/index", "/api/app.py", "/app.py"]:
+            if path_info == prefix or path_info == prefix + "/":
+                environ["PATH_INFO"] = "/"
+                break
+            elif path_info.startswith(prefix + "/"):
+                environ["PATH_INFO"] = path_info[len(prefix):]
+                break
         return self.wsgi_app(environ, start_response)
 
 app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)
@@ -151,7 +158,9 @@ def login():
 
                     flash(f"Welcome back, {session['full_name']}! Forensics session initialized.", "success")
                     next_url = request.args.get("next")
-                    return redirect(next_url or url_for("dashboard"))
+                    if next_url and next_url.startswith("/") and not next_url.startswith("/login"):
+                        return redirect(next_url)
+                    return redirect(url_for("dashboard"))
                 else:
                     flash("Invalid credentials. Access denied.", "danger")
             else:
