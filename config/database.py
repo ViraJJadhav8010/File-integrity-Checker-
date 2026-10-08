@@ -1,29 +1,31 @@
 import mysql.connector
 from config import Config
 
-# Preserve DB_CONFIG reference using centralized Config
+
+# Preserve DB_CONFIG reference
 DB_CONFIG = Config.DB_CONFIG
+
 
 def get_connection():
     """
-    Returns a MySQL database connection using central Config settings.
-    Logs errors cleanly and prevents Tkinter crashes in headless/web environments.
+    Returns a secure MySQL/TiDB Cloud database connection.
+    Uses environment variables from Vercel or local .env.
     """
     try:
-        connection = mysql.connector.connect(**Config.DB_CONFIG)
+        db_config = Config.DB_CONFIG.copy()
+
+        # TiDB Cloud uses port 4000 and requires SSL/TLS
+        if db_config.get("port") == 4000:
+            db_config.update({
+                "ssl_verify_cert": True,
+                "ssl_verify_identity": True
+            })
+
+        connection = mysql.connector.connect(**db_config)
+
+        print("[Database] Connected successfully.")
         return connection
+
     except mysql.connector.Error as err:
-        print(f"[Database Connection Error] Unable to connect to MySQL: {err}")
-        # Optional Tkinter dialog for desktop compatibility if running in a desktop GUI context
-        try:
-            import tkinter as tk
-            from tkinter import messagebox
-            # Only display messagebox if a Tk root exists to avoid crashing headless servers
-            if tk._default_root is not None:
-                messagebox.showerror(
-                    "Database Connection Error",
-                    f"Unable to connect to MySQL.\n\nError: {err}"
-                )
-        except Exception:
-            pass
+        print(f"[Database Connection Error] Unable to connect to database: {err}")
         return None
