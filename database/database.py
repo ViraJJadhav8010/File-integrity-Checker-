@@ -5,13 +5,14 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from config import Config
-from config.database import get_connection
+from config.database import get_connection, get_last_db_error, get_sanitized_db_error
 
 def init_db():
     """Initializes and migrates MySQL database tables for the web application."""
     conn = get_connection()
     if conn is None:
-        print("[Database] Warning: Could not connect to MySQL during init_db()")
+        err = get_sanitized_db_error()
+        print(f"[Database] Warning: Could not connect to database during init_db(): {err}")
         return False
 
     cursor = conn.cursor(buffered=True)

@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
-from database.database import get_connection, init_db
+from database.database import get_connection, init_db, get_sanitized_db_error
 from services.hash_service import (
     compute_md5, compute_sha256, format_file_size,
     get_file_metadata, get_file_type_description
@@ -119,7 +119,12 @@ def login():
 
         conn = get_connection()
         if not conn:
-            flash("Unable to connect to security database. Verify MySQL service.", "danger")
+            err_detail = get_sanitized_db_error()
+            if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+                msg = f"Database connection error: {err_detail or 'Unable to reach TiDB Cloud database.'} Please verify database environment variables in Vercel settings."
+            else:
+                msg = f"Unable to connect to security database: {err_detail or 'Verify database service and credentials in .env.'}"
+            flash(msg, "danger")
             return render_template("login.html", username=identifier)
 
         cursor = None
@@ -223,7 +228,12 @@ def register():
 
         conn = get_connection()
         if not conn:
-            flash("Database connection failed. Cannot register operator.", "danger")
+            err_detail = get_sanitized_db_error()
+            if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+                msg = f"Database connection failed: {err_detail or 'Unable to reach TiDB Cloud database.'} Cannot register operator."
+            else:
+                msg = f"Database connection failed: {err_detail or 'Verify database service.'} Cannot register operator."
+            flash(msg, "danger")
             return render_template("register.html", full_name=full_name, username=username, email=email)
 
         cursor = None
@@ -453,7 +463,8 @@ def profile():
     user_id = session.get("user_id")
     conn = get_connection()
     if not conn:
-        flash("Database error connecting to user profile.", "danger")
+        err_detail = get_sanitized_db_error()
+        flash(f"Database error connecting to user profile: {err_detail or 'Check database connection.'}", "danger")
         return redirect(url_for("dashboard"))
 
     cursor = None
