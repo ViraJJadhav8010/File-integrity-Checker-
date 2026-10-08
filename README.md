@@ -114,8 +114,5 @@ DB_CONFIG = {
 
 ---
 
-## 👥 Authors & Academic Credits
 
-- **Viraj Jadhav**
-- **Pawar Neha**
-- **Bhosale Shivneri**
+
