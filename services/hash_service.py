@@ -4,8 +4,8 @@ from datetime import datetime
 
 def compute_md5(file_input):
     """
-    Computes MD5 hash from either a file path string or a file-like stream.
-    Reads in 4096-byte chunks for memory efficiency.
+    Computes MD5 hash from either a file path string or a file-like stream (e.g. Werkzeug FileStorage).
+    Reads in 4096-byte chunks for memory efficiency without persisting to disk.
     """
     try:
         hash_md5 = hashlib.md5()
@@ -16,14 +16,15 @@ def compute_md5(file_input):
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash_md5.update(chunk)
         else:
-            # File-like object (e.g. Werkzeug FileStorage stream)
-            pos = file_input.tell() if hasattr(file_input, "tell") else 0
-            if hasattr(file_input, "seek"):
-                file_input.seek(0)
-            for chunk in iter(lambda: file_input.read(4096), b""):
+            # File-like object (e.g. Werkzeug FileStorage or BytesIO stream)
+            stream = getattr(file_input, "stream", file_input)
+            pos = stream.tell() if hasattr(stream, "tell") else 0
+            if hasattr(stream, "seek"):
+                stream.seek(0)
+            for chunk in iter(lambda: stream.read(4096), b""):
                 hash_md5.update(chunk)
-            if hasattr(file_input, "seek"):
-                file_input.seek(pos)
+            if hasattr(stream, "seek"):
+                stream.seek(pos)
 
         return hash_md5.hexdigest()
     except Exception as err:
@@ -41,13 +42,14 @@ def compute_sha256(file_input):
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash_sha256.update(chunk)
         else:
-            pos = file_input.tell() if hasattr(file_input, "tell") else 0
-            if hasattr(file_input, "seek"):
-                file_input.seek(0)
-            for chunk in iter(lambda: file_input.read(4096), b""):
+            stream = getattr(file_input, "stream", file_input)
+            pos = stream.tell() if hasattr(stream, "tell") else 0
+            if hasattr(stream, "seek"):
+                stream.seek(0)
+            for chunk in iter(lambda: stream.read(4096), b""):
                 hash_sha256.update(chunk)
-            if hasattr(file_input, "seek"):
-                file_input.seek(pos)
+            if hasattr(stream, "seek"):
+                stream.seek(pos)
 
         return hash_sha256.hexdigest()
     except Exception as err:
@@ -99,20 +101,45 @@ def get_file_type_description(filename):
     }
     return mapping.get(ext, f"{ext.upper()} File")
 
-def get_file_metadata(file_path, original_filename=None):
-    """Extracts forensic metadata from an uploaded or stored file."""
-    if not os.path.isfile(file_path):
-        return None
-    
-    file_name = original_filename or os.path.basename(file_path)
-    size_bytes = os.path.getsize(file_path)
-    md5_hash = compute_md5(file_path)
-    sha256_hash = compute_sha256(file_path)
-    mod_time = datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
+def get_file_metadata(file_input, original_filename=None):
+    """
+    Extracts forensic metadata from an uploaded file stream or local file path.
+    Supports in-memory FileStorage/BytesIO objects without requiring persistent disk storage.
+    """
+    if isinstance(file_input, str):
+        if not os.path.isfile(file_input):
+            return None
+        file_name = original_filename or os.path.basename(file_input)
+        size_bytes = os.path.getsize(file_input)
+        md5_hash = compute_md5(file_input)
+        sha256_hash = compute_sha256(file_input)
+        mod_time = datetime.fromtimestamp(os.path.getmtime(file_input)).strftime("%Y-%m-%d %H:%M:%S")
+        file_path_disp = file_input
+    else:
+        # FileStorage or stream-like object
+        file_name = original_filename or getattr(file_input, "filename", None) or "unnamed_file.bin"
+        stream = getattr(file_input, "stream", file_input)
+
+        # Calculate stream size
+        size_bytes = 0
+        if hasattr(stream, "seek") and hasattr(stream, "tell"):
+            orig_pos = stream.tell()
+            stream.seek(0, os.SEEK_END)
+            size_bytes = stream.tell()
+            stream.seek(orig_pos)
+
+        md5_hash = compute_md5(stream)
+        sha256_hash = compute_sha256(stream)
+        mod_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        file_path_disp = file_name
+
+        # Ensure stream is reset for any subsequent operations
+        if hasattr(stream, "seek"):
+            stream.seek(0)
 
     return {
         "file_name": file_name,
-        "file_path": file_path,
+        "file_path": file_path_disp,
         "size_bytes": size_bytes,
         "formatted_size": format_file_size(size_bytes),
         "file_type": get_file_type_description(file_name),

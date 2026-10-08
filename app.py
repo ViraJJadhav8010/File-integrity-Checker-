@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 from functools import wraps
 from datetime import datetime
@@ -319,15 +320,26 @@ def browse_file():
             return redirect(request.url)
 
         if file:
-            filename = secure_filename(file.filename)
-            if not filename:
-                filename = f"file_{int(datetime.now().timestamp())}.bin"
+            try:
+                # Optionally cache file on disk only during local dev if configured
+                is_vercel = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+                if not is_vercel and os.getenv("SAVE_UPLOADS_LOCAL", "").lower() in ("1", "true"):
+                    try:
+                        filename = secure_filename(file.filename) or f"file_{int(datetime.now().timestamp())}.bin"
+                        save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                        file.save(save_path)
+                    except Exception as save_err:
+                        print(f"[Browse Warning] Local file cache skipped: {save_err}")
 
-            save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(save_path)
-
-            file_metadata = get_file_metadata(save_path, original_filename=file.filename)
-            flash(f"File '{file.filename}' analyzed successfully. MD5 cryptographic checksum calculated.", "success")
+                # Compute cryptographic checksums directly in-memory from the file stream
+                file_metadata = get_file_metadata(file, original_filename=file.filename)
+                if file_metadata and file_metadata.get("md5_hash"):
+                    flash(f"File '{file.filename}' analyzed successfully. MD5 cryptographic checksum calculated.", "success")
+                else:
+                    flash(f"Could not calculate checksum for '{file.filename}'.", "danger")
+            except Exception as err:
+                print(f"[Browse Error] File inspection exception: {err}", file=sys.stderr)
+                flash(f"File inspection error: {err}", "danger")
 
     return render_template("browse_file.html", file_metadata=file_metadata)
 
@@ -340,38 +352,40 @@ def store_hash():
     file_info = None
 
     if request.method == "POST":
-        # Check if storing directly via file upload OR via form parameters
-        file = request.files.get("file")
-        file_name = request.form.get("file_name", "").strip()
-        file_hash = request.form.get("file_hash", "").strip()
-        file_size = request.form.get("file_size", "")
-        file_type = request.form.get("file_type", "")
+        try:
+            # Check if storing directly via file upload OR via form parameters
+            file = request.files.get("file")
+            file_name = request.form.get("file_name", "").strip()
+            file_hash = request.form.get("file_hash", "").strip()
+            file_size = request.form.get("file_size", "")
+            file_type = request.form.get("file_type", "")
 
-        if file and file.filename != "":
-            filename = secure_filename(file.filename) or "unnamed_file.bin"
-            save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(save_path)
+            # If an actual file was uploaded, extract its cryptographic metadata in-memory
+            if file and file.filename != "":
+                meta = get_file_metadata(file, original_filename=file.filename)
+                if meta:
+                    file_name = meta["file_name"]
+                    file_hash = meta["md5_hash"]
+                    file_size = meta["formatted_size"]
+                    file_type = meta["file_type"]
+                    file_info = meta
 
-            meta = get_file_metadata(save_path, original_filename=file.filename)
-            if meta:
-                file_name = meta["file_name"]
-                file_hash = meta["md5_hash"]
-                file_size = meta["formatted_size"]
-                file_type = meta["file_type"]
-                file_info = meta
+            if not file_name or not file_hash:
+                flash("File name and valid hash are required to establish a baseline.", "danger")
+                return render_template("store_hash.html", file_info=file_info)
 
-        if not file_name or not file_hash:
-            flash("File name and valid hash are required to establish a baseline.", "danger")
+            # Store baseline in MySQL / TiDB Cloud
+            res = store_or_update_hash(file_name, file_hash, file_size=file_size, file_type=file_type)
+            if res["success"]:
+                flash(res["message"], "success")
+            else:
+                flash(f"Failed to store baseline: {res['message']}", "danger")
+
+            return redirect(url_for("dashboard"))
+        except Exception as err:
+            print(f"[Store Hash Error] Store baseline exception: {err}", file=sys.stderr)
+            flash(f"Error establishing baseline hash: {err}", "danger")
             return render_template("store_hash.html", file_info=file_info)
-
-        # Store baseline in MySQL
-        res = store_or_update_hash(file_name, file_hash, file_size=file_size, file_type=file_type)
-        if res["success"]:
-            flash(res["message"], "success")
-        else:
-            flash(f"Failed to store baseline: {res['message']}", "danger")
-
-        return redirect(url_for("dashboard"))
 
     # If GET with query parameters from browse page
     pre_name = request.args.get("name")
@@ -399,33 +413,34 @@ def check_integrity():
     pre_file = request.args.get("file")
 
     if request.method == "POST":
-        file = request.files.get("file")
-        if not file or file.filename == "":
-            flash("Please select a file to verify its integrity.", "warning")
-            return redirect(request.url)
+        try:
+            file = request.files.get("file")
+            if not file or file.filename == "":
+                flash("Please select a file to verify its integrity.", "warning")
+                return redirect(request.url)
 
-        filename = secure_filename(file.filename) or "target_file.bin"
-        save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(save_path)
+            # Calculate cryptographic hash directly from in-memory stream
+            current_hash = compute_md5(file)
+            if not current_hash:
+                flash("Unable to calculate cryptographic checksum for this file.", "danger")
+                return render_template("check_integrity.html", pre_file=pre_file)
 
-        current_hash = compute_md5(save_path)
-        if not current_hash:
-            flash("Unable to calculate cryptographic checksum for this file.", "danger")
-            return render_template("check_integrity.html")
+            # Run integrity verification against MySQL / TiDB Cloud baseline
+            result = verify_file_integrity(
+                file_name=file.filename,
+                current_hash=current_hash,
+                checked_by=session.get("username", "Analyst")
+            )
 
-        # Run integrity verification against MySQL baseline
-        result = verify_file_integrity(
-            file_name=file.filename,
-            current_hash=current_hash,
-            checked_by=session.get("username", "Analyst")
-        )
-
-        if result["status"] == "VERIFIED":
-            flash(f"File '{file.filename}' verified safe! Cryptographic checksum matches baseline.", "success")
-        elif result["status"] == "MODIFIED":
-            flash(f"ALERT: Integrity violation detected on '{file.filename}'!", "danger")
-        else:
-            flash(result["message"], "warning")
+            if result["status"] == "VERIFIED":
+                flash(f"File '{file.filename}' verified safe! Cryptographic checksum matches baseline.", "success")
+            elif result["status"] == "MODIFIED":
+                flash(f"ALERT: Integrity violation detected on '{file.filename}'!", "danger")
+            else:
+                flash(result["message"], "warning")
+        except Exception as err:
+            print(f"[Check Integrity Error] Integrity verification exception: {err}", file=sys.stderr)
+            flash(f"Error during integrity verification: {err}", "danger")
 
     return render_template("check_integrity.html", result=result, pre_file=pre_file)
 
@@ -575,6 +590,10 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    import traceback
+    err_trace = traceback.format_exc()
+    sanitized_trace = re.sub(r"(password|pwd|secret)[=:\s]+[^\s,;]+", r"\1=***", err_trace, flags=re.IGNORECASE)
+    print(f"[Internal Server Error 500]: {error}\n{sanitized_trace}", file=sys.stderr)
     return render_template(
         "error.html",
         error_title="500 - Internal Server Error",

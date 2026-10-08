@@ -59,8 +59,12 @@ class Config:
     }
 
     # Uploads Configuration
-    # Uses environment variable if set, otherwise defaults to local uploads directory
-    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
+    # Uses environment variable if set, otherwise defaults to /tmp on Vercel or local uploads directory
+    if IS_VERCEL:
+        import tempfile
+        UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(tempfile.gettempdir(), "uploads"))
+    else:
+        UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 64 * 1024 * 1024)) # 64MB default
 
 # Ensure upload directory exists if filesystem allows
