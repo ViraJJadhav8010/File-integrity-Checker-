@@ -22,11 +22,37 @@ from services.integrity_service import (
     generate_csv_report
 )
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 # -------------------------------------------------------------
 # Initialize Flask Application
 # -------------------------------------------------------------
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, "static"),
+    template_folder=os.path.join(BASE_DIR, "templates")
+)
 app.config.from_object(Config)
+
+# WSGI Middleware to normalize paths when running on Vercel Serverless
+class VercelPathFixMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        matched_path = environ.get("HTTP_X_MATCHED_PATH")
+        if matched_path and matched_path not in ["/api/index.py", "/api/index", "/api/app.py", "/app.py"]:
+            environ["PATH_INFO"] = matched_path
+        else:
+            path_info = environ.get("PATH_INFO", "")
+            for prefix in ["/api/index.py", "/api/index", "/api/app.py", "/app.py"]:
+                if path_info.startswith(prefix):
+                    stripped = path_info[len(prefix):]
+                    environ["PATH_INFO"] = stripped if (stripped and stripped.startswith("/")) else ("/" + stripped if stripped else "/")
+                    break
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathFixMiddleware(app.wsgi_app)
 
 # Ensure database tables exist and migrations are applied
 with app.app_context():
@@ -519,10 +545,12 @@ def api_delete_baseline(file_id):
 # -------------------------------------------------------------
 @app.errorhandler(404)
 def not_found_error(error):
+    req_path = request.path if request else ""
+    error_msg = f"The requested endpoint '{req_path}' does not exist on this security server." if req_path else "The requested endpoint does not exist. Please return to the security console."
     return render_template(
         "error.html",
         error_title="404 - Endpoint Not Found",
-        error_message="The requested forensics endpoint does not exist. Please return to the security console."
+        error_message=error_msg
     ), 404
 
 @app.errorhandler(500)
