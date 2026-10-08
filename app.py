@@ -60,6 +60,9 @@ def inject_global_data():
 # Route: Landing Page & Root
 # -------------------------------------------------------------
 @app.route("/")
+@app.route("/index")
+@app.route("/index.html")
+@app.route("/home")
 def index():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
@@ -86,8 +89,9 @@ def login():
             flash("Unable to connect to security database. Verify MySQL service.", "danger")
             return render_template("login.html", username=identifier)
 
-        cursor = conn.cursor(dictionary=True)
+        cursor = None
         try:
+            cursor = conn.cursor(dictionary=True)
             # Allow login by either username, email, or full_name
             cursor.execute("""
                 SELECT id, full_name, username, email, password 
@@ -130,8 +134,16 @@ def login():
         except Exception as err:
             flash(f"Database authentication error: {err}", "danger")
         finally:
-            cursor.close()
-            conn.close()
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     return render_template("login.html")
 
@@ -179,8 +191,9 @@ def register():
             flash("Database connection failed. Cannot register operator.", "danger")
             return render_template("register.html", full_name=full_name, username=username, email=email)
 
-        cursor = conn.cursor(dictionary=True)
+        cursor = None
         try:
+            cursor = conn.cursor(dictionary=True)
             # Check for duplicate username
             cursor.execute("SELECT id FROM register WHERE username = %s OR full_name = %s LIMIT 1", (username, username))
             if cursor.fetchone():
@@ -209,8 +222,16 @@ def register():
             flash(f"Registration failed: {err}", "danger")
             return render_template("register.html", full_name=full_name, username=username, email=email)
         finally:
-            cursor.close()
-            conn.close()
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     return render_template("register.html")
 
@@ -400,8 +421,9 @@ def profile():
         flash("Database error connecting to user profile.", "danger")
         return redirect(url_for("dashboard"))
 
-    cursor = conn.cursor(dictionary=True)
+    cursor = None
     try:
+        cursor = conn.cursor(dictionary=True)
         if request.method == "POST":
             action = request.form.get("action")
             
@@ -465,8 +487,16 @@ def profile():
         flash(f"Profile error: {err}", "danger")
         return redirect(url_for("dashboard"))
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 # -------------------------------------------------------------
 # REST API Endpoints
@@ -489,11 +519,19 @@ def api_delete_baseline(file_id):
 # -------------------------------------------------------------
 @app.errorhandler(404)
 def not_found_error(error):
-    return render_template("base.html", error_title="404 - Not Found", error_message="The requested forensics endpoint does not exist."), 404
+    return render_template(
+        "error.html",
+        error_title="404 - Endpoint Not Found",
+        error_message="The requested forensics endpoint does not exist. Please return to the security console."
+    ), 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    return render_template("base.html", error_title="500 - Internal Server Error", error_message="An unexpected system error occurred."), 500
+    return render_template(
+        "error.html",
+        error_title="500 - Internal Server Error",
+        error_message="A server exception occurred while processing forensics telemetry."
+    ), 500
 
 # -------------------------------------------------------------
 # Application Runner

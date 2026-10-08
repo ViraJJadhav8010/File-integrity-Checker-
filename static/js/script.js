@@ -85,21 +85,47 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ---------------------------------------------------------
-    // Copy Hash to Clipboard
+    // Copy Hash to Clipboard (With Fallback)
     // ---------------------------------------------------------
+    function copyText(text, button) {
+        function showSuccess() {
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fa-solid fa-check text-success"></i> Copied!';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+            }, 2000);
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showSuccess).catch(() => {
+                fallbackCopy(text, showSuccess);
+            });
+        } else {
+            fallbackCopy(text, showSuccess);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        const temp = document.createElement("textarea");
+        temp.value = text;
+        temp.style.position = "fixed";
+        temp.style.left = "-9999px";
+        document.body.appendChild(temp);
+        temp.select();
+        try {
+            document.execCommand("copy");
+            if (callback) callback();
+        } catch (err) {
+            console.error("Fallback copy failed:", err);
+        }
+        document.body.removeChild(temp);
+    }
+
     document.querySelectorAll(".btn-copy-hash").forEach(function (button) {
         button.addEventListener("click", function () {
             const hashText = this.getAttribute("data-hash");
             if (hashText) {
-                navigator.clipboard.writeText(hashText).then(() => {
-                    const originalText = this.innerHTML;
-                    this.innerHTML = '<i class="fa-solid fa-check text-success"></i> Copied!';
-                    setTimeout(() => {
-                        this.innerHTML = originalText;
-                    }, 2000);
-                }).catch(err => {
-                    console.error("Clipboard copy failed:", err);
-                });
+                copyText(hashText, this);
             }
         });
     });
@@ -166,14 +192,28 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // ---------------------------------------------------------
-    // Auto-dismiss Alerts after 5 seconds
+    // Auto-dismiss Alerts after 5 seconds (Safe without bootstrap)
     // ---------------------------------------------------------
     setTimeout(function () {
         document.querySelectorAll(".alert-auto-dismiss").forEach(alert => {
-            const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
-            if (bsAlert) {
-                bsAlert.close();
+            if (typeof bootstrap !== "undefined" && bootstrap.Alert) {
+                try {
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    if (bsAlert) {
+                        bsAlert.close();
+                        return;
+                    }
+                } catch (e) {
+                    // Fall back to direct DOM dismissal
+                }
             }
+            alert.style.transition = "opacity 0.4s ease";
+            alert.style.opacity = "0";
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 400);
         });
     }, 5000);
 });
